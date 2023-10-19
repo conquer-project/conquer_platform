@@ -44,27 +44,29 @@ permissions:
 
 jobs:
   plan-infrastructure:
-    if: ${{ github.event_name == 'pull_request' }}
-    uses: ./.github/workflows/infra-as-code.yml
+    uses: ./.github/workflows/terraform.yml
     with:
-      pr: true
-      fmt-check: true
-      workspace: dev
-      working-dir: infrastructure/ephemeral-resources/
+      pr: ${{ github.event_name == 'pull_request' }}
+      fmt-check: ${{ github.event_name == 'pull_request' }}
+      workspace: ${{ github.event_name == 'pull_request' && 'dev' || inputs.environment }}
+      working-dir: infrastructure/ephemeral-resources
       role-to-assume: ${{ vars.GH_IDP_AWS_ROLE_TO_ASSUME }}
 
   create-infrastrucure:
-    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
-    uses: ./.github/workflows/infra-as-code.yml
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' && inputs.action != 'plan-only'}}
+    needs: plan-infrastructure
+    uses: ./.github/workflows/terraform.yml
     with:
-      apply: true
-      workspace: dev
-      working-dir: infrastructure/ephemeral-resources/
+      apply: true # Ensure plan only
+      plan: false
+      validate: false
+      workspace: ${{ inputs.environment  }}
+      working-dir: infrastructure/ephemeral-resources
       role-to-assume: ${{ vars.GH_IDP_AWS_ROLE_TO_ASSUME }}
 
   post-infra-creation:
     runs-on: ubuntu-latest
-    needs: [create-infrastrucure]
+    needs: create-infrastrucure
     env:
       AWS_ACCOUNT: 014630368052
       ADMINS_ROLE: AWSReservedSSO_AdministratorAccess_3aa7018f63a5798a
