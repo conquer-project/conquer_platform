@@ -3,7 +3,7 @@ run-name: "Destroying ephemeral resources"
 on:
   schedule:
     - cron: "0 05 * * *"  # Every 5AM UTC Mon-Fri
-    - cron: "00 11 * * 1,2,3,4,5"  # Every weekday at 11:00 CT
+    - cron: "00 12 * * 1,2,3,4,5"  # Every weekday at 12PM CT
   
   workflow_dispatch:
     inputs:
