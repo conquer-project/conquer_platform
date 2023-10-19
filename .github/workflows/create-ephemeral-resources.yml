@@ -1,0 +1,94 @@
+name: create-ephemeral-resources
+run-name: "Planning or creating ephemeral resources"
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment, this will be used as tf workspace"
+        required: true
+        default: "dev"
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+      action:
+        description: "Chose between create or plan the environment"
+        required: true
+        type: choice
+        options:
+          - plan-only # Only for visual, if plan only and destroy are selected, then it will plan a destroy but not apply
+          - create
+        default: create
+      role_to_assume:
+        description: "Role to assume in AWS"
+        default: arn:aws:iam::014630368052:role/gh-actions-role
+        type: string
+
+  pull_request:
+    paths: 
+    - infrastructure/ephemeral-resources/**
+    types:
+      - "opened"
+      - "synchronize"
+      - "reopened"
+
+  schedule:
+    - cron: "45 8 * * 1,2,3,4,5"  # Every weekday at 9:45 CT
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+jobs:
+  plan-infrastructure:
+    if: ${{ github.event_name == 'pull_request' }}
+    uses: ./.github/workflows/infra-as-code.yml
+    with:
+      pr: true
+      fmt-check: true
+      workspace: dev
+      working-dir: infrastructure/ephemeral-resources/
+      role-to-assume: ${{ vars.GH_IDP_AWS_ROLE_TO_ASSUME }}
+
+  create-infrastrucure:
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+    uses: ./.github/workflows/infra-as-code.yml
+    with:
+      apply: true
+      workspace: dev
+      working-dir: infrastructure/ephemeral-resources/
+      role-to-assume: ${{ vars.GH_IDP_AWS_ROLE_TO_ASSUME }}
+
+  post-infra-creation:
+    runs-on: ubuntu-latest
+    needs: [create-infrastrucure]
+    env:
+      AWS_ACCOUNT: 014630368052
+      ADMINS_ROLE: AWSReservedSSO_AdministratorAccess_3aa7018f63a5798a
+    steps:
+      - uses: actions/checkout@v3
+      - name: configure aws credentials
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          role-to-assume: ${{ vars.GH_IDP_AWS_ROLE_TO_ASSUME }}
+          aws-region: eu-north-1
+      - 
+        name: create kubefile
+        run: aws eks update-kubeconfig --name dev-conquer-cluster
+  
+      - 
+        # TODO: Move this step to /k8s-manifests/k8s-rbac/
+        name: allow admins to access eks control plane
+        run: |
+          kubectl patch configmap/aws-auth -n kube-system --type merge -p "$(cat <<EOF
+          data:
+            mapRoles: |
+              - rolearn: arn:aws:iam::${{ env.AWS_ACCOUNT }}:role/${{ env.ADMINS_ROLE }}
+                username: admin
+                groups:
+                  - system:masters
+          EOF
+          )"
