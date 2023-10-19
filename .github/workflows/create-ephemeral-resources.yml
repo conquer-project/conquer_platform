@@ -35,7 +35,7 @@ on:
       - "reopened"
 
   schedule:
-    - cron: "45 8 * * 1,2,3,4,5"  # Every weekday at 9:45 CT
+    - cron: "45 9 * * 1,2,3,4,5"  # Every weekday at 9:45 CT
 
 permissions:
   id-token: write
