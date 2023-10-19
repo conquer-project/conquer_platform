@@ -1,0 +1,35 @@
+name: destroy-ephemeral-resources
+run-name: "Destroying ephemeral resources"
+on:
+  schedule:
+    - cron: "0 05 * * *"  # Every 5AM UTC Mon-Fri
+    - cron: "00 11 * * 1,2,3,4,5"  # Every weekday at 11:00 CT
+  
+  workflow_dispatch:
+    inputs:
+      role_to_assume:
+        description: "Role to assume in AWS"
+        default: arn:aws:iam::014630368052:role/gh-actions-role
+        type: string
+
+env: 
+  AWS_REGION: us-east-1
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+jobs:
+  destroy-ephemeral-resources:
+    strategy:
+      matrix:
+        environment: ["dev"]
+    uses: ./.github/workflows/infra-as-code.yml
+    with:
+      apply: true
+      destroy: true
+      fmt-check: false
+      workspace: ${{ matrix.environment }}
+      working-dir: infrastructure/ephemeral-resources/
+      role-to-assume: arn:aws:iam::014630368052:role/gh-actions-role
