@@ -25,7 +25,7 @@ jobs:
     strategy:
       matrix:
         environment: ["dev"]
-    uses: ./.github/workflows/infra-as-code.yml
+    uses: ./.github/workflows/terraform.yml
     with:
       apply: true
       destroy: true
