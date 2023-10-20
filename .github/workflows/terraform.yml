@@ -44,6 +44,11 @@ on:
         default: false
         description: "Whether or not comment the pull request"
         type: boolean
+      k8s-deploy:
+        required: false
+        default: false
+        description: "This workflow will run on infrastructure/ephemeral/resources/k8s-deployments"
+        type: boolean
 
 jobs:
   terraform-workflow:
@@ -60,7 +65,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v3
         with:
           role-to-assume: ${{ inputs.role-to-assume }}
-          aws-region: us-east-1
+          aws-region: eu-north-1
       - uses: hashicorp/setup-terraform@v2
       - name: terraform-fmt
         id: fmt
@@ -81,6 +86,9 @@ jobs:
         if: inputs.pr && inputs.plan
         run: 'terraform plan -no-color -out plan.out'
         continue-on-error: true
+      - name: create kubefile
+        if: inputs.k8s-deploy
+        run: aws eks update-kubeconfig --name dev-conquer-cluster
       - name: terraform-plan
         id: plan
         if: inputs.pr == false && inputs.plan

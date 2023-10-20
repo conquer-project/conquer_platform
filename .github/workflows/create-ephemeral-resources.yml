@@ -46,7 +46,7 @@ env:
   K8S_DEPLOYMENTS_FOLDER: infrastructure/ephemeral-resources/k8s-deployments
 
 jobs:
-  plan-infrastructure:
+  plan-ephemeral:
     uses: ./.github/workflows/terraform.yml
     with:
       pr: ${{ github.event_name == 'pull_request' }}
@@ -55,21 +55,35 @@ jobs:
       working-dir: infrastructure/ephemeral-resources
       role-to-assume: ${{ vars.GH_IDP_AWS_ROLE_TO_ASSUME }}
 
-  create-infrastrucure:
-    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' && inputs.action != 'plan-only'}}
-    needs: plan-infrastructure
+  create-ephemeral:
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' && inputs.action == 'create'}}
+    needs: plan-ephemeral
     uses: ./.github/workflows/terraform.yml
     with:
-      apply: true # Ensure plan only
+      apply: true
       plan: false
       validate: false
       workspace: ${{ inputs.environment  }}
       working-dir: infrastructure/ephemeral-resources
       role-to-assume: ${{ vars.GH_IDP_AWS_ROLE_TO_ASSUME }}
 
+  create-ephemeral-k8s-deployments:
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' && inputs.action == 'create'}}
+    needs: create-ephemeral
+    uses: ./.github/workflows/terraform.yml
+    with:
+      apply: true
+      plan: true
+      k8s-deploy: true
+      validate: false
+      workspace: ${{ github.event_name != 'workflow_dispatch' && 'dev' || inputs.environment }}
+      working-dir: infrastructure/ephemeral-resources/k8s-deployments
+      role-to-assume: ${{ vars.GH_IDP_AWS_ROLE_TO_ASSUME }}
+    
+
   post-infra-creation:
     runs-on: ubuntu-latest
-    needs: create-infrastrucure
+    needs: create-ephemeral-k8s-deployments
     env:
       ADMINS_ROLE: AWSReservedSSO_AdministratorAccess_3aa7018f63a5798a
     steps:
@@ -92,3 +106,11 @@ jobs:
           ROLE="    - rolearn: arn:aws:iam::$ACCOUNT_ID:role/${{ env.ADMINS_ROLE }}\n      username: admins\n      groups:\n        - system:masters"          
           kubectl get -n kube-system configmap/aws-auth -o yaml | awk "/mapRoles: \|/{print;print \"$ROLE\";next}1" > /tmp/aws-auth-patch.yml
           kubectl patch configmap/aws-auth -n kube-system --patch "$(cat /tmp/aws-auth-patch.yml)"
+
+      - # https://github.com/argoproj/argo-cd/blob/master/docs/faq.md#i-forgot-the-admin-password-how-do-i-reset-it
+        name: Update ArgoCD Admin Password
+        run: |
+          kubectl -n argocd patch secret argocd-secret -p '{"stringData": {"admin.password": "${{ secrets.ARGOCD_ADMIN_PASSWORD }}", "admin.passwordMtime": "'$(date +%FT%T%Z)'"}}'
+      -
+        name: output URL to access ArgoCD
+        run: kubectl get svc -n argocd | grep "argocd-server" | awk '{print $4}'
