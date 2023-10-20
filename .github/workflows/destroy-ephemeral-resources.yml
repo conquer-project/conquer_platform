@@ -21,7 +21,22 @@ permissions:
   pull-requests: write
 
 jobs:
+  destroy-k8s-deployments:
+    strategy:      
+      matrix:
+        environment: ["dev"]    # https://docs.github.com/en/actions/using-jobs/using-a-matrix-for-your-jobs#handling-failures
+    uses: ./.github/workflows/terraform.yml
+    with:
+      apply: true
+      destroy: true
+      k8s-deploy: true
+      fmt-check: false
+      workspace: ${{ matrix.environment }}
+      working-dir: infrastructure/ephemeral-resources/k8s-deployments
+      role-to-assume: arn:aws:iam::014630368052:role/gh-actions-role
+
   destroy-ephemeral-resources:
+    needs: destroy-k8s-deployments
     strategy:
       matrix:
         environment: ["dev"]
