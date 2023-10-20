@@ -42,6 +42,9 @@ permissions:
   contents: read
   pull-requests: write
 
+env:
+  K8S_DEPLOYMENTS_FOLDER: infrastructure/ephemeral-resources/k8s-deployments
+
 jobs:
   plan-infrastructure:
     uses: ./.github/workflows/terraform.yml
@@ -68,7 +71,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: create-infrastrucure
     env:
-      AWS_ACCOUNT: 014630368052
       ADMINS_ROLE: AWSReservedSSO_AdministratorAccess_3aa7018f63a5798a
     steps:
       - uses: actions/checkout@v3
@@ -83,14 +85,10 @@ jobs:
   
       - 
         # TODO: Move this step to /k8s-manifests/k8s-rbac/
+        # Source: https://claudm.github.io/codepipeline/configmap/
         name: allow admins to access eks control plane
         run: |
-          kubectl patch configmap/aws-auth -n kube-system --type merge -p "$(cat <<EOF
-          data:
-            mapRoles: |
-              - rolearn: arn:aws:iam::${{ env.AWS_ACCOUNT }}:role/${{ env.ADMINS_ROLE }}
-                username: admin
-                groups:
-                  - system:masters
-          EOF
-          )"
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          ROLE="    - rolearn: arn:aws:iam::$ACCOUNT_ID:role/${{ env.ADMINS_ROLE }}\n      username: admins\n      groups:\n        - system:masters"          
+          kubectl get -n kube-system configmap/aws-auth -o yaml | awk "/mapRoles: \|/{print;print \"$ROLE\";next}1" > /tmp/aws-auth-patch.yml
+          kubectl patch configmap/aws-auth -n kube-system --patch "$(cat /tmp/aws-auth-patch.yml)"
