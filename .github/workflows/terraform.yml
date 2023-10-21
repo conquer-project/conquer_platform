@@ -60,7 +60,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v3
         with:
           role-to-assume: ${{ inputs.role-to-assume }}
-          aws-region: us-east-1
+          aws-region: eu-north-1
       - uses: hashicorp/setup-terraform@v2
       - name: terraform-fmt
         id: fmt
