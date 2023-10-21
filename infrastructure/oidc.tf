@@ -41,7 +41,7 @@ resource "aws_iam_role" "gh-actions" {
   lifecycle {
     prevent_destroy = true
   }
-  
+
 }
 
 resource "aws_iam_role_policy_attachment" "AdministratorAccess" {
