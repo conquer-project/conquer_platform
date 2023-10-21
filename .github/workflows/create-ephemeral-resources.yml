@@ -18,7 +18,7 @@ on:
         required: true
         type: choice
         options:
-          - plan-only # Only for visual, if plan only and destroy are selected, then it will plan a destroy but not apply
+          - plan-only
           - create
         default: create
       role_to_assume:
@@ -54,11 +54,11 @@ jobs:
       role-to-assume: ${{ vars.GH_IDP_AWS_ROLE_TO_ASSUME }}
 
   create-ephemeral:
-    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' && inputs.action != 'plan-only'}}
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' && inputs.action == 'create'}}
     needs: plan-ephemeral
     uses: ./.github/workflows/terraform.yml
     with:
-      apply: true # Ensure plan only
+      apply: true
       plan: false
       validate: false
       workspace: ${{ github.event_name != 'workflow_dispatch' && 'dev' || inputs.environment }}
@@ -89,3 +89,11 @@ jobs:
           ROLE="    - rolearn: arn:aws:iam::$ACCOUNT_ID:role/${{ env.ADMINS_ROLE }}\n      username: admins\n      groups:\n        - system:masters"          
           kubectl get -n kube-system configmap/aws-auth -o yaml | awk "/mapRoles: \|/{print;print \"$ROLE\";next}1" > /tmp/aws-auth-patch.yml
           kubectl patch configmap/aws-auth -n kube-system --patch "$(cat /tmp/aws-auth-patch.yml)"
+
+      - # https://github.com/argoproj/argo-cd/blob/master/docs/faq.md#i-forgot-the-admin-password-how-do-i-reset-it
+        name: Update ArgoCD Admin Password
+        run: |
+          kubectl -n argocd patch secret argocd-secret -p '{"stringData": {"admin.password": "${{ secrets.ARGOCD_ADMIN_PASSWORD }}", "admin.passwordMtime": "'$(date +%FT%T%Z)'"}}'
+      -
+        name: output URL to access ArgoCD
+        run: kubectl get svc -n argocd | grep "argocd-server" | awk '{print $4}'
