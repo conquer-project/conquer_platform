@@ -1,0 +1,42 @@
+name: infrastructure
+run-name: ${{ github.author }}
+
+on:
+  push:
+    branches:
+      - "main"
+  pull_request:
+    paths:
+    - infrastructure/*
+    types:
+      - "opened"
+      - "synchronize"
+      - "reopened"
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+jobs:
+  plan:
+    uses: ./.github/workflows/terraform.yml
+    if: github.event_name == 'pull_request'
+    with:
+      pr: true
+      fmt-check: true
+      workspace: dev
+      working-dir: infrastructure/
+      role-to-assume: ${{ vars.GH_IDP_AWS_ROLE_TO_ASSUME }}
+
+  apply:
+    uses: ./.github/workflows/terraform.yml
+    if: github.ref_name == 'main'
+    with:
+      apply: true
+      plan: false
+      validate: false
+      workspace: dev
+      working-dir: infrastructure/
+      role-to-assume: ${{ vars.GH_IDP_AWS_ROLE_TO_ASSUME }}
+      
