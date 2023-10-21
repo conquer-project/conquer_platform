@@ -35,7 +35,8 @@ on:
       - "reopened"
 
   schedule:
-    - cron: "45 9 * * 1,2,3,4,5"  # Every weekday at 9:45 CT
+    - cron: "45 9 * * 1,2,3,4,5"  # [Morning Folks] Every weekday at 9:45 CT
+    - cron: "23 00 * * 1,2,3,4,5"  # [Vampires] Every weekday at 23:00 CT
 
 permissions:
   id-token: write
@@ -48,7 +49,7 @@ jobs:
     with:
       pr: ${{ github.event_name == 'pull_request' }}
       fmt-check: ${{ github.event_name == 'pull_request' }}
-      workspace: ${{ github.event_name == 'pull_request' && 'dev' || inputs.environment }}
+      workspace: ${{ github.event_name != 'workflow_dispatch' && 'dev' || inputs.environment }}
       working-dir: infrastructure/ephemeral-resources
       role-to-assume: ${{ vars.GH_IDP_AWS_ROLE_TO_ASSUME }}
 
@@ -60,7 +61,7 @@ jobs:
       apply: true # Ensure plan only
       plan: false
       validate: false
-      workspace: ${{ inputs.environment  }}
+      workspace: ${{ github.event_name != 'workflow_dispatch' && 'dev' || inputs.environment }}
       working-dir: infrastructure/ephemeral-resources
       role-to-assume: ${{ vars.GH_IDP_AWS_ROLE_TO_ASSUME }}
 
