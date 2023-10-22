@@ -1,4 +1,4 @@
-############## EKS Control Plane ####################
+################################# EKS Control Plane ####################################
 data "aws_iam_policy_document" "assume_eks_role" {
   statement {
     effect = "Allow"
@@ -31,7 +31,8 @@ resource "aws_iam_role_policy_attachment" "AmazonEKSClusterPolicy" {
 # }
 
 
-################# EKS WORKER NODES ROLE ###################
+
+##################################### EKS WORKER NODES ROLE ######################################
 data "aws_iam_policy_document" "assume_eks-worker_role" {
   statement {
     effect = "Allow"
@@ -79,3 +80,39 @@ resource "aws_iam_role_policy_attachment" "AmazonEKS_CNI_Policy" {
 # If the instance is private and do not have internet access through NAT or internet gateway
 # We need to enable the instance to some endpoints
 # Reference: https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-getting-started-privatelink.html
+
+
+
+#################################### EBS CSI Driver IAM Role #####################################
+# https://docs.aws.amazon.com/eks/latest/userguide/csi-iam-role.html
+# Required by EBS CSI Driver add-on to assume IAM Role to have the right permissions to create EBS volumes
+
+data "aws_caller_identity" "current" {}
+locals {
+  eks-iodc-issuer = replace(aws_eks_cluster.eks.identity[0].oidc[0].issuer, "https://", "")
+}
+resource "aws_iam_role" "AmazonEKS_EBS_CSI_DriverRole" {
+  name = "AmazonEKS_EBS_CSI_DriverRole"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action = "sts:AssumeRoleWithWebIdentity"
+      Effect = "Allow"
+      Principal = {
+        Federated = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:oidc-provider/${local.eks-iodc-issuer}"
+      }
+      Condition = {
+        StringLike = {
+          "${local.eks-iodc-issuer}:sub" = "system:serviceaccount:kube-system:ebs-csi-controller-sa"
+          "${local.eks-iodc-issuer}:aud" = "sts.amazonaws.com"
+        }
+      }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "AmazonEBSCSIDriverPolicy-attachment" {
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
+  role       = aws_iam_role.AmazonEKS_EBS_CSI_DriverRole.name
+}
