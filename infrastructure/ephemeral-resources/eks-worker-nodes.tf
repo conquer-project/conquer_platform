@@ -1,11 +1,11 @@
 # Two node groups, one per subnet (The two existing subnets are in different AZs)
 # If the nodes are in private subnets without NAT or internet gateway, it need to reach EKS API somehow https://docs.aws.amazon.com/eks/latest/userguide/cluster-endpoint.html
 resource "aws_eks_node_group" "node-group" {
-  for_each        = toset(data.aws_subnets.eks_subnets.ids)
+  for_each        = local.eks_availability_zones
   cluster_name    = resource.aws_eks_cluster.eks.name
-  node_group_name = "${local.project}-node-group-${index(data.aws_subnets.eks_subnets.ids, each.value)}"
+  node_group_name = "${local.project}-node-group-${index(tolist(local.eks_availability_zones), each.value)}"
   node_role_arn   = aws_iam_role.eks_worker_role.arn
-  subnet_ids      = [each.value]
+  subnet_ids      = [aws_subnet.eks_subnets_private[each.value].id]
   capacity_type   = "SPOT"
   instance_types  = ["t3.micro"]
 

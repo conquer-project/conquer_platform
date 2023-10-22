@@ -26,7 +26,7 @@ resource "aws_eks_cluster" "eks" {
   }
 
   vpc_config {
-    subnet_ids              = data.aws_subnets.eks_subnets.ids # You can't change which subnets you want to use after cluster creation.
+    subnet_ids              = [for az in local.eks_availability_zones : aws_subnet.eks_subnets_private[az].id] # You can't change which subnets you want to use after cluster creation.
     endpoint_public_access  = true
     endpoint_private_access = true          # Enable EKS public API server endpoint https://docs.aws.amazon.com/eks/latest/userguide/cluster-endpoint.html
     public_access_cidrs     = ["0.0.0.0/0"] # EKS API server endpoint source IP, could be used to allow only VPN
@@ -42,7 +42,7 @@ resource "aws_eks_cluster" "eks" {
 
   # https://kubernetes.io/releases/
   # Supported versions by EKS https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html
-  version = "1.27" # no upgrades will occur except those automatically triggered by EKS
+  version = "1.28" # no upgrades will occur except those automatically triggered by EKS
 
   tags = {
     ctf = "WW91IGdvdCBpdCEgbmljZS4="
