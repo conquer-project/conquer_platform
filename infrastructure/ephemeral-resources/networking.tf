@@ -1,26 +1,15 @@
-locals {
-  # Everything is built around the AZs, increase one AZ that it will increase subnets, nats and ips
-  eks_availability_zones = toset([
-    "eu-north-1a",
-    "eu-north-1b",
-  ])
-}
-
-# VPC
-# Reference https://github.com/hashicorp/learn-terraform-provision-eks-cluster/blob/57e1156420c1f4893c7fc50da8b8dbf322961d34/main.tf#L26
-resource "aws_vpc" "conquer-vpc" {
-  cidr_block           = "10.0.0.0/16"
-  instance_tenancy     = "default"
-  enable_dns_support   = true # Defaults to true, but for reference since EKS nodes needs this to be true in order to work properly
-  enable_dns_hostnames = true
-  tags = {
-    "Name" = "${local.project}-vpc"
+data "aws_vpc" "conquer-vpc" {
+  filter {
+    name = "tag:Name"
+    values = [
+      "${local.project}-vpc"
+    ]
   }
 }
 
 # VPC Internet gateway
 resource "aws_internet_gateway" "igw" {
-  vpc_id = aws_vpc.conquer-vpc.id
+  vpc_id = data.aws_vpc.conquer-vpc.id
 
   tags = {
     Name = "${local.project}-vpc-igw"
@@ -29,7 +18,7 @@ resource "aws_internet_gateway" "igw" {
 
 # VPC Default route table with internet gateway route
 resource "aws_default_route_table" "vpc_default_rt" {
-  default_route_table_id = aws_vpc.conquer-vpc.default_route_table_id
+  default_route_table_id = data.aws_vpc.conquer-vpc.main_route_table_id
 
   route {
     cidr_block = "0.0.0.0/0"
@@ -45,7 +34,7 @@ resource "aws_default_route_table" "vpc_default_rt" {
 # Public subnets
 resource "aws_subnet" "eks_subnets_public" {
   for_each          = local.eks_availability_zones
-  vpc_id            = aws_vpc.conquer-vpc.id
+  vpc_id            = data.aws_vpc.conquer-vpc.id
   cidr_block        = "10.0.${index(tolist(local.eks_availability_zones), each.value) + length(local.eks_availability_zones) + 1}.0/24" # 254 IPs available to pods with this configuration
   availability_zone = each.value                                                                                                        # Ensure multi zones
   tags = {
@@ -57,7 +46,7 @@ resource "aws_subnet" "eks_subnets_public" {
 # Private subnets
 resource "aws_subnet" "eks_subnets_private" {
   for_each          = local.eks_availability_zones
-  vpc_id            = aws_vpc.conquer-vpc.id
+  vpc_id            = data.aws_vpc.conquer-vpc.id
   cidr_block        = "10.0.${index(tolist(local.eks_availability_zones), each.value) + 1}.0/24" # 254 IPs available to pods with this configuration
   availability_zone = each.value                                                                 # Ensure multi zones
   tags = {
@@ -72,7 +61,7 @@ resource "aws_subnet" "eks_subnets_private" {
 ## One route table per AZ, respectively on route table per private subnet
 resource "aws_route_table" "private_subnet_rt" {
   for_each = local.eks_availability_zones
-  vpc_id   = aws_vpc.conquer-vpc.id
+  vpc_id   = data.aws_vpc.conquer-vpc.id
 
   tags = {
     Name = "${local.project}-nat-${each.value}-rt"
