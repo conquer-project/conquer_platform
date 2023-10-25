@@ -36,7 +36,6 @@ on:
 
   schedule:
     - cron: "45 9 * * 1,2,3,4,5"  # [Morning Folks] Every weekday at 9:45 CT
-    - cron: "23 00 * * 1,2,3,4,5"  # [Vampires] Every weekday at 23:00 CT
 
 permissions:
   id-token: write
