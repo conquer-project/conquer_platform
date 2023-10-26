@@ -63,6 +63,7 @@ resource "aws_eks_addon" "aws-ebs-csi-driver" {
   addon_name                  = "aws-ebs-csi-driver"
   resolve_conflicts_on_update = "PRESERVE"
   service_account_role_arn    = aws_iam_role.AmazonEKS_EBS_CSI_DriverRole.arn
+  depends_on                  = [aws_eks_node_group.node-group]
 }
 
 # Cluster outputs

@@ -10,3 +10,8 @@
 aws sts get-caller-identity
 ```
 
+### Do you want to know what is running in the cluster ? take this:
+
+```bash
+./kubernetes_get_all.sh
+```
