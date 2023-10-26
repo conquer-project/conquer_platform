@@ -27,8 +27,8 @@ on:
         type: string
 
   pull_request:
-    paths: 
-    - infrastructure/ephemeral-resources/**
+    paths:
+      - infrastructure/ephemeral-resources/**
     types:
       - "opened"
       - "synchronize"
@@ -41,6 +41,9 @@ permissions:
   id-token: write
   contents: read
   pull-requests: write
+
+env:
+  WORKSPACE: ${{ inputs.environment != '' && inputs.environment || 'dev' }}
 
 jobs:
   plan-ephemeral:
@@ -77,11 +80,9 @@ jobs:
         with:
           role-to-assume: ${{ vars.GH_IDP_AWS_ROLE_TO_ASSUME }}
           aws-region: eu-north-1
-      - 
-        name: create kubefile
-        run: aws eks update-kubeconfig --name dev-conquer-cluster
-      - 
-        # TODO: Move this step to /k8s-manifests/k8s-rbac/
+      - name: create kubefile
+        run: aws eks update-kubeconfig --name $WORKSPACE-conquer-cluster
+      - # TODO: Move this step to /k8s-manifests/k8s-rbac/
         name: allow admins to access eks control plane
         run: |
           ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
@@ -89,10 +90,65 @@ jobs:
           kubectl get -n kube-system configmap/aws-auth -o yaml | awk "/mapRoles: \|/{print;print \"$ROLE\";next}1" > /tmp/aws-auth-patch.yml
           kubectl patch configmap/aws-auth -n kube-system --patch "$(cat /tmp/aws-auth-patch.yml)"
 
-      - # https://github.com/argoproj/argo-cd/blob/master/docs/faq.md#i-forgot-the-admin-password-how-do-i-reset-it
-        name: Update ArgoCD Admin Password
+  deploy-argocd:
+    runs-on: ubuntu-latest
+    needs: create-ephemeral
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: "conquer-project/helm-charts"
+          ref: 'main'
+          sparse-checkout: |
+            charts-overrides/argocd/values.yaml
+            charts-overrides/argocd-apps/values.yaml
+
+      - name: configure aws credentials
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          role-to-assume: ${{ vars.GH_IDP_AWS_ROLE_TO_ASSUME }}
+          aws-region: eu-north-1
+      - name: create kubeconfig
+        run: aws eks update-kubeconfig --name "$WORKSPACE-conquer-cluster"
+      # TODO: sepparate argocd in a different workflow to make development life cycle easier
+      - name: deploy argocd
+        run: |
+          helm upgrade argocd argo-cd --install \
+            --dependency-update \
+            --description "ArgoCD" \
+            --output table \
+            --wait \
+            --wait-for-jobs \
+            --values charts-overrides/argocd/values.yaml \
+            --repo https://argoproj.github.io/argo-helm \
+            --namespace argocd \
+            --create-namespace
+
+      - name: deploy argocd-apps
+        run: |
+          helm upgrade argocd-apps argocd-apps --install \
+            --dependency-update \
+            --description "ArgoCD Applications" \
+            --output table \
+            --values charts-overrides/argocd-apps/values.yaml \
+            --wait \
+            --wait-for-jobs \
+            --repo https://argoproj.github.io/argo-helm \
+            --namespace argocd
+
+      - name: update argocd admin password # https://github.com/argoproj/argo-cd/blob/master/docs/faq.md#i-forgot-the-admin-password-how-do-i-reset-it
         run: |
           kubectl -n argocd patch secret argocd-secret -p '{"stringData": {"admin.password": "${{ secrets.ARGOCD_ADMIN_PASSWORD }}", "admin.passwordMtime": "'$(date +%FT%T%Z)'"}}'
-      -
-        name: output URL to access ArgoCD
-        run: kubectl get svc -n argocd | grep "argocd-server" | awk '{print $4}'
+      - name: output URL to access ArgoCD
+        shell: bash {0}
+        run: |
+          while true; do
+            kubectl get svc nginx-controller-ingress-nginx-controller -nkube-tools > /dev/null 2> /dev/null
+            if [[ "$?" -eq 0 ]]; then
+              break
+            fi
+            echo "Waiting for nginx-controller svc to become healthy"
+            sleep 5
+          done
+          url="$(kubectl get svc nginx-controller-ingress-nginx-controller -o=jsonpath='{.status.loadBalancer.ingress[0].hostname}' -nkube-tools)/argocd"
+          echo "$url"
+          echo ":rocket: ArgoCD URL $url" >> $GITHUB_STEP_SUMMARY          

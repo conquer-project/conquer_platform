@@ -2,12 +2,15 @@
 
 - [Conquer Project](#conquer-project)
   - [Overview](#overview)
+    - [Links](#links)
     - [Branch strategy](#branch-strategy)
       - [Release flow](#release-flow)
     - [Infrastructure](#infrastructure)
       - [Create new bucket for terraform state](#create-new-bucket-for-terraform-state)
-      - [Scaffold development workflow](#scaffold-development-workflow)
-      - [Scaffold dispatch workflow](#scaffold-dispatch-workflow)
+      - [Github Actions Workflow](#github-actions-workflow)
+        - [Create and destroy ephemeral resources](#create-and-destroy-ephemeral-resources)
+        - [Schedule](#schedule)
+        - [Pull request decorate](#pull-request-decorate)
       - [Local terraform](#local-terraform)
     - [EKS](#eks)
       - [Connecting to the cluster](#connecting-to-the-cluster)
@@ -16,6 +19,11 @@
 ## Overview
 
 Welcome to the Conquer Project! In this collaborative effort, three enthusiastic colleagues come together to tackle the challenge of creating a project end to end using AWS, Harborm, Helm, Kubernetes, Kafka, Terraform and golang
+
+### Links
+
+- conquerproject.io
+- conquerproject.io/argocd
 
 ### Branch strategy
 
@@ -54,28 +62,31 @@ fix/specific-fix-name---------------/
 
 ### Infrastructure
 
-![infra](./images/eks_infra.png)
+![infra](./diagrams/eks_infra.png)
 
 #### Create new bucket for terraform state
 ```bash
 aws s3api create-bucket --region us-east-1 --bucket conquer-project-tf-state --acl private
 ```
 
-#### Scaffold development workflow
+#### Github Actions Workflow
 
-This repository contains a scaffold development workflow that comments the terraform plan to a Pull request whenever a new one is opened.
+This repository contains workflows to create, destroy, plan and decorate a pull request using terraform infrastructure plan/apply.
 
-Also it applies the infrastructure from scaffold folder once merged to `main`.
+##### Create and destroy ephemeral resources
 
-> Note: The workspace/environment is hard coded as `dev`. TODO: figure out a way to promote across environments, should we plan/apply to all workspaces at once ? (we can use matrix to that)
+The `create-ephemeral-resources.yml` workflow perform a terraform plan and apply of the resources within `infrastructure/ephemeral-resources` as well as give administrator permission to the EKS cluster and deploy ArgoCD and its Apps.
 
-#### Scaffold dispatch workflow
+The `destroy-ephemeral-resources.yml` workflow destroy all resources within `infrastructure/ephemeral-resources` to all terraform workspaces
 
-This repository contains a scaffold workflow in order to easily create or destroy the environment through a dispatcher (**manually**).
+##### Schedule
 
-To scaffold the desired environment, select the environment (dev, staging and prod) and the create option (default one). You can also select `plan-only` to plan only or `destroy` to destroy all resources in the desired environment.
+The schedule configuration within `create-ephemeral-resources.yml`  workflow will create all resources inside `infrastructure/ephemeral-resources` in the defined time. Also the destroy schedule configuration within `destroy-ephemeral-resources.yml` workflow will delete all resources inside `infrastructure/ephemeral-resources` in the defined time.
 
-There is also a `vanish` workflow that destroy all the workspaces/environments at the determined schedule configuration.
+##### Pull request decorate
+
+Pull requests are decorated with terraform plan thorugh the reusable workflow `terraform.yml` when a new pull request is open to `infrastructure/*`
+
 
 #### Local terraform
 
@@ -92,7 +103,7 @@ terraform init
 terraform validate
 
 # Select the desired workspace
-terraform workspace select <environment>
+terraform workspace select <environment> # dev, staging, prod
 
 # Plan
 terraform plan -out plan.out # TBD, in order to differ environments --var-file=<env>.tfvars. Is there a way we can use terraform.workspace to do more complex logic ?
