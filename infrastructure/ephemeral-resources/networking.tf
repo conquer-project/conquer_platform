@@ -7,29 +7,6 @@ data "aws_vpc" "conquer-vpc" {
   }
 }
 
-# VPC Internet gateway
-resource "aws_internet_gateway" "igw" {
-  vpc_id = data.aws_vpc.conquer-vpc.id
-
-  tags = {
-    Name = "${local.project}-vpc-igw"
-  }
-}
-
-# VPC Default route table with internet gateway route
-resource "aws_default_route_table" "vpc_default_rt" {
-  default_route_table_id = data.aws_vpc.conquer-vpc.main_route_table_id
-
-  route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.igw.id
-  }
-
-  tags = {
-    Name = "${local.project}-vpc-default-rt"
-  }
-}
-
 # Need to be at least two subnets in two different AZs
 # Public subnets
 resource "aws_subnet" "eks_subnets_public" {
@@ -89,6 +66,8 @@ resource "aws_nat_gateway" "nat_gw" {
   for_each      = local.eks_availability_zones
   allocation_id = aws_eip.vpc_eip["${each.value}"].id
   subnet_id     = aws_subnet.eks_subnets_public["${each.value}"].id
+
+  depends_on = [aws_eip.vpc_eip]
 
   tags = {
     Name = "${local.project}-nat-gw-public-subnet-${each.value}"

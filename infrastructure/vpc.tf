@@ -9,3 +9,26 @@ resource "aws_vpc" "conquer-vpc" {
     "Name" = "${local.project}-vpc"
   }
 }
+
+# VPC Internet gateway
+resource "aws_internet_gateway" "igw" {
+  vpc_id = aws_vpc.conquer-vpc.id
+
+  tags = {
+    Name = "${local.project}-vpc-igw"
+  }
+}
+
+# VPC Default route table with internet gateway route
+resource "aws_default_route_table" "vpc_default_rt" {
+  default_route_table_id = aws_vpc.conquer-vpc.main_route_table_id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.igw.id
+  }
+
+  tags = {
+    Name = "${local.project}-vpc-default-rt"
+  }
+}
