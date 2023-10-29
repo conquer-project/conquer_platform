@@ -136,4 +136,9 @@ jobs:
       - name: terraform-apply
         id: apply
         if: inputs.apply
-        run: '[[ "$DESTROY" == "true" ]] && terraform destroy --auto-approve || terraform apply --auto-approve' # TODO: Adjust apply to pull the plan.out from artifact
+        run: |
+          if [[ "$DESTROY" == "true" ]]; then
+            terraform destroy --auto-approve
+          else
+            terraform apply --auto-approve' # TODO: Adjust apply to pull the plan.out from artifact
+          fi
