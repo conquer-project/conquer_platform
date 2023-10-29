@@ -7,3 +7,13 @@ resource "aws_ecr_repository" "conquer-ecr-repo" {
     scan_on_push = true
   }
 }
+
+resource "aws_ecr_repository" "votingapp-ecr-repo" {
+  name                 = "votingapp"
+  image_tag_mutability = "IMMUTABLE"
+  force_delete         = true
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+}
