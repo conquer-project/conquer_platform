@@ -85,7 +85,12 @@ jobs:
       - name: terraform-plan
         id: plan
         if: inputs.pr == false && inputs.plan
-        run: '[[ "$DESTROY" == "true" ]] && terraform plan -destroy || terraform plan -out plan.out'
+        run: |
+          if [[ "$DESTROY" == "true" ]]; then
+            terraform plan -destroy
+          else
+            terraform plan -out plan.out
+          fi
       - name: Update PR
         uses: actions/github-script@v6
         id: pr
@@ -136,4 +141,9 @@ jobs:
       - name: terraform-apply
         id: apply
         if: inputs.apply
-        run: '[[ "$DESTROY" == "true" ]] && terraform destroy --auto-approve || terraform apply --auto-approve' # TODO: Adjust apply to pull the plan.out from artifact
+        run: |
+          if [[ "$DESTROY" == "true" ]]; then
+            terraform destroy --auto-approve
+          else
+            terraform apply --auto-approve # TODO: Adjust apply to pull the plan.out from artifact
+          fi
