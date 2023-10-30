@@ -7,11 +7,11 @@ resource "aws_eks_node_group" "node-group" {
   node_role_arn   = aws_iam_role.eks_worker_role.arn
   subnet_ids      = [aws_subnet.eks_subnets_private[each.value].id]
   capacity_type   = "SPOT"
-  instance_types  = ["t3.micro"]
+  instance_types  = ["t3.small"]
 
   scaling_config {
-    desired_size = 3
-    max_size     = 3
+    desired_size = 2
+    max_size     = 2
     min_size     = 1
   }
 
