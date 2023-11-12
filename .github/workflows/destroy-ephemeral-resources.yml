@@ -20,6 +20,24 @@ permissions:
   pull-requests: write
 
 jobs:
+  destroy-argocd-apps:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        environment: ["dev"]
+    steps:     
+      - name: configure aws credentials
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          role-to-assume: ${{ vars.GH_IDP_AWS_ROLE_TO_ASSUME }}
+          aws-region: eu-north-1
+
+      - name: create kubeconfig
+        run: aws eks update-kubeconfig --name "${{ matrix.environment }}-conquer-cluster"
+
+      - name: destroy argocd-apps
+        run: helm delete argocd-apps --namespace argocd --wait
+
   destroy-ephemeral-resources:
     strategy:
       matrix:
