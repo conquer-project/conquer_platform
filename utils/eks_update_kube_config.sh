@@ -1,4 +1,4 @@
 #!/bin/bash
 
 set -eo pipefail
-aws eks list-clusters --region eu-north-1 | yq '.clusters[]' | xargs -I {} aws eks update-kubeconfig --region eu-north-1 --name {}
+aws eks list-clusters --region us-east-1 | yq '.clusters[]' | xargs -I {} aws eks update-kubeconfig --region us-east-1 --name {}
