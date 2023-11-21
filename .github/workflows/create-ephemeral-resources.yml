@@ -79,7 +79,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v3
         with:
           role-to-assume: ${{ vars.GH_IDP_AWS_ROLE_TO_ASSUME }}
-          aws-region: eu-north-1
+          aws-region: us-east-1
       - name: create kubefile
         run: aws eks update-kubeconfig --name $WORKSPACE-conquer-cluster
       - # TODO: Move this step to /k8s-manifests/k8s-rbac/
@@ -106,7 +106,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v3
         with:
           role-to-assume: ${{ vars.GH_IDP_AWS_ROLE_TO_ASSUME }}
-          aws-region: eu-north-1
+          aws-region: us-east-1
       - name: create kubeconfig
         run: aws eks update-kubeconfig --name "$WORKSPACE-conquer-cluster"
       # TODO: sepparate argocd in a different workflow to make development life cycle easier
