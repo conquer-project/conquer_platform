@@ -34,9 +34,6 @@ on:
       - "synchronize"
       - "reopened"
 
-  schedule:
-    - cron: "45 9 * * 1,2,3,4,5"  # [Morning Folks] Every weekday at 9:45 CT
-
 permissions:
   id-token: write
   contents: read
