@@ -3,6 +3,9 @@
 *.tfstate.backup
 *.tfplan
 
+# Ignore terragrunt files
+.terragrunt-cache
+
 # Ignore local .terraform directories
 **/.terraform/*
 
