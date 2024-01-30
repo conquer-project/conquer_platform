@@ -3,7 +3,8 @@ include "tg-shared-configs" {
 }
 
 terraform {
-  source = "git@github.com:conquer-project/tf-modules//gh-repos?ref=gh-repos-v0.1.0"
+  #source = "git@github.com:conquer-project/tf-modules//gh-repos?ref=gh-repos-v0.1.0"
+  source = "../../../../tf-modules/gh-repos/" 
 }
 
 inputs = yamldecode(file("repos.yaml"))

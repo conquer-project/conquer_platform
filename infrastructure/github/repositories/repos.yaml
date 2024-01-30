@@ -2,9 +2,35 @@
 gh_organization: "conquer-project"
 
 repos:
-  reusable-workflows:
+  reusable_workflows:    
     description: "All the reusable workflows for the Conquer Project are here"
     visibility: "public"
     allow_merge_commit: false
     allow_squash_merge: false
     allow_rebase_merge: true
+    has_issues: true
+
+  tf-modules:
+    description: "Terraform modules repository"
+    visibility: "public"
+    allow_merge_commit: false
+    allow_squash_merge: false
+    allow_rebase_merge: true
+    has_issues: true
+
+  conquer_platform:
+    description: "The Conquer Platform is your dedicated Cloud Platform engineered to accelerate services development and operations"
+    visibility: "public"
+    allow_merge_commit: false
+    allow_squash_merge: false
+    allow_rebase_merge: true
+    has_wiki: true
+    has_issues: true
+
+  helm-charts:
+    description: "Chart repository for the Conquer Project"
+    visibility: "public"
+    allow_merge_commit: false
+    allow_squash_merge: false
+    allow_rebase_merge: true
+    has_issues: true
